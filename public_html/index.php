@@ -28,6 +28,7 @@ $products = $stmt->fetchAll();
                 <a href="admin_panel.php" class="btn btn-outline-danger btn-sm">Админка</a>
                 <a href="add_item.php" class="btn btn-success btn-sm">+ Добавить товар</a>
             <?php endif; ?>
+            <a href="profile.php" class="btn btn-outline-primary btn-sm me-2">Мои заказы</a>
             <a href="logout.php" class="btn btn-dark btn-sm">Выйти</a>
         <?php else: ?>
             <!-- Если гость -->
