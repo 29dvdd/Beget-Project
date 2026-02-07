@@ -11,7 +11,7 @@ $sql = "
         products.price
     FROM orders
     JOIN users ON orders.user_id = users.id
-    JOIN products ON orders.product_id = products.id
+    LEFT JOIN products ON orders.product_id = products.id
     ORDER BY orders.id DESC
 ";
 
@@ -45,8 +45,8 @@ $orders = $pdo->query($sql)->fetchAll();
                 <td><?= (int)$order['order_id'] ?></td>
                 <td><?= htmlspecialchars($order['created_at']) ?></td>
                 <td><?= htmlspecialchars($order['email']) ?></td>
-                <td><?= htmlspecialchars($order['title']) ?></td>
-                <td><?= htmlspecialchars($order['price']) ?> ₽</td>
+                <td><?= htmlspecialchars($order['title'] ?? 'Товар удалён') ?></td>
+                <td><?= htmlspecialchars($order['price'] !== null ? $order['price'] . ' ₽' : '-') ?></td>
             </tr>
             <?php endforeach; ?>
         </tbody>

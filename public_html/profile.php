@@ -9,6 +9,7 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = (int)$_SESSION['user_id'];
 
+// Получаем заказы пользователя
 $sql = "
     SELECT 
         orders.id as order_id, 
@@ -51,22 +52,22 @@ $my_orders = $stmt->fetchAll();
 <div class="container">
     <div class="card shadow-sm">
         <div class="card-header bg-white d-flex justify-content-between align-items-center">
-    <h2 class="mb-0">Мои заказы</h2>
-    <div class="d-flex gap-2">
-        <a class="btn btn-outline-secondary btn-sm" href="change_password.php">Сменить пароль</a>
-        <a class="btn btn-outline-secondary btn-sm" href="index.php">Каталог</a>
-    </div>
-</div>
+            <h2 class="mb-0">Мои заказы</h2>
+            <div class="d-flex gap-2">
+                <a class="btn btn-outline-secondary btn-sm" href="change_password.php">Сменить пароль</a>
+                <a class="btn btn-outline-secondary btn-sm" href="index.php">Каталог</a>
+            </div>
+        </div>
         <div class="card-body">
 
-            <?php if (count($my_orders) > 0): ?>
+            <?php if ($my_orders): ?>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
                         <tr>
                             <th>№</th>
                             <th>Дата</th>
-                            <th>Товар</th>
+                            <th>Мероприятие</th>
                             <th>Цена</th>
                             <th>Статус</th>
                             <th></th>
@@ -91,29 +92,24 @@ $my_orders = $stmt->fetchAll();
                                     </span>
                                 </td>
                                 <td class="text-end d-flex gap-2 justify-content-end">
+                                    <a class="btn btn-sm btn-outline-primary"
+                                       href="order_details.php?id=<?= (int)$order['order_id'] ?>">
+                                        Подробнее
+                                    </a>
 
-    <a class="btn btn-sm btn-outline-primary"
-       href="order_details.php?id=<?= (int)$order['order_id'] ?>">
-        Подробнее
-    </a>
-
-    <?php if ($order['status'] === 'new'): ?>
-        <form method="POST" action="delete_order.php"
-              onsubmit="return confirm('Удалить заказ?');">
-
-            <input type="hidden" name="order_id"
-                   value="<?= (int)$order['order_id'] ?>">
-
-            <input type="hidden" name="csrf_token"
-                   value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
-
-            <button type="submit" class="btn btn-sm btn-outline-danger">
-                Удалить
-            </button>
-        </form>
-    <?php endif; ?>
-
-</td>
+                                    <?php if ($order['status'] === 'new'): ?>
+                                        <form method="POST" action="delete_order.php"
+                                              onsubmit="return confirm('Удалить заказ?');">
+                                            <input type="hidden" name="order_id"
+                                                   value="<?= (int)$order['order_id'] ?>">
+                                            <input type="hidden" name="csrf_token"
+                                                   value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                Удалить
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>

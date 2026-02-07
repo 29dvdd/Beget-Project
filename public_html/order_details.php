@@ -36,6 +36,12 @@ $order = $stmt->fetch();
 if (!$order) {
     die("Заказ не найден или у вас нет прав на его просмотр.");
 }
+
+// Выбираем цвет статуса
+$status_color = 'secondary';
+if ($order['status'] === 'new') $status_color = 'primary';
+if ($order['status'] === 'processing') $status_color = 'warning';
+if ($order['status'] === 'done') $status_color = 'success';
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -46,25 +52,34 @@ if (!$order) {
 </head>
 <body class="bg-light">
 <div class="container mt-4" style="max-width: 900px;">
-    <a href="profile.php" class="btn btn-outline-secondary btn-sm mb-3">← Назад в профиль</a>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <a href="profile.php" class="btn btn-outline-secondary btn-sm">← Назад в профиль</a>
+        <?php if ($order['status'] === 'new'): ?>
+            <form method="POST" action="delete_order.php" onsubmit="return confirm('Удалить заказ?');">
+                <input type="hidden" name="order_id" value="<?= (int)$order['order_id'] ?>">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
+                <button type="submit" class="btn btn-sm btn-outline-danger">Удалить заказ</button>
+            </form>
+        <?php endif; ?>
+    </div>
 
     <div class="card shadow-sm">
         <div class="card-header bg-white">
-            <h4 class="mb-0">Заказ #<?= (int)$order['order_id'] ?></h4>
-            <small class="text-muted"><?= htmlspecialchars($order['created_at']) ?></small>
+            <h4 class="mb-1">Заказ #<?= (int)$order['order_id'] ?></h4>
+            <small class="text-muted"><?= date('d.m.Y H:i', strtotime($order['created_at'])) ?></small>
         </div>
 
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-4">
-                    <?php $img = $order['image_url'] ?: 'https://via.placeholder.com/300'; ?>
+                    <?php $img = $order['image_url'] ?: 'https://via.placeholder.com/300x200?text=Мероприятие'; ?>
                     <img src="<?= htmlspecialchars($img) ?>" class="img-fluid rounded" alt="Фото">
                 </div>
                 <div class="col-md-8">
                     <h5><?= htmlspecialchars($order['title']) ?></h5>
                     <p class="text-muted"><?= htmlspecialchars($order['description'] ?? '') ?></p>
                     <p class="fw-bold">Цена: <?= number_format((float)$order['price'], 0, '', ' ') ?> ₽</p>
-                    <p>Статус: <span class="badge bg-secondary"><?= htmlspecialchars($order['status']) ?></span></p>
+                    <p>Статус: <span class="badge bg-<?= $status_color ?>"><?= htmlspecialchars($order['status']) ?></span></p>
                 </div>
             </div>
         </div>

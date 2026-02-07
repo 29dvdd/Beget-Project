@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "Неверный email или пароль";
         } else {
 
-            // ГЛАВНАЯ ПРОВЕРКА
+            // Проверка пароля
             if (password_verify($password, $user['password_hash'])) {
 
                 $_SESSION['user_id'] = $user['id'];
@@ -83,9 +83,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <input type="password" name="password" class="form-control" required>
                         </div>
 
-                        <button class="btn btn-primary w-100">Войти</button>
-
+                        <button class="btn btn-primary w-100 mb-2">Войти</button>
                     </form>
+
+                    <div class="text-center mt-2">
+                        <p class="mb-0">Еще нет аккаунта? <a href="register.php">Зарегистрироваться</a></p>
+                    </div>
 
                 </div>
             </div>
