@@ -1,81 +1,121 @@
 <?php
+/**
+ * РОУТЕР - Единая точка входа
+ * Проект: Афиша мероприятий
+ * Студент: Барабашов Давид
+ * Группа: 9-ИС202
+ */
+
 session_start();
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
 
-require_once __DIR__ . '/config/Database.php';
-require_once __DIR__ . '/src/Controllers/AuthController.php';
-require_once __DIR__ . '/src/Controllers/EventController.php';
+// Подключаем конфигурацию БД
+require_once __DIR__ . '/config/db.php';
 
+// Подключаем модели
+require_once __DIR__ . '/src/Models/Event.php';
+
+// Генерация CSRF токена
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// Определяем страницу
 $page = $_GET['page'] ?? 'home';
-$user_id = $_SESSION['user_id'] ?? null;
-$user_role = $_SESSION['role'] ?? null;
 
+// Роутинг
 switch ($page) {
 
-    case 'login':
-        (new AuthController())->login();
-        break;
+    case 'home':
+        // Главная страница - список мероприятий
+        $eventModel = new Event($pdo);
 
-    case 'register':
-        (new AuthController())->register();
-        break;
+        // Пагинация
+        $currentPage = isset($_GET['p']) ? (int)$_GET['p'] : 1;
+        if ($currentPage < 1) $currentPage = 1;
 
-    case 'logout':
-        session_destroy();
-        header('Location: ?page=home');
-        exit;
+        $limit = 12;
+        $offset = ($currentPage - 1) * $limit;
 
-    case 'profile':
-        if (!$user_id) {
-            header('Location: ?page=login');
-            exit;
-        }
-        require_once __DIR__ . '/templates/profile.php';
+        // Фильтры
+        $search = $_GET['search'] ?? null;
+        $date   = $_GET['date'] ?? null;
+
+        // Получаем данные
+        $events = $eventModel->getAll($limit, $offset, $search, $date);
+        $total_rows  = $eventModel->getCount($search, $date);
+        $total_pages = (int)ceil($total_rows / $limit);
+
+        // переменные для шаблона
+        $page = $currentPage;
+
+        require __DIR__ . '/templates/event_list.php';
         break;
 
     case 'add_event':
-        if (!$user_id || $user_role !== 'admin') {
-            http_response_code(403);
-            echo "Доступ запрещён";
-            exit;
-        }
-        (new EventController())->add();
-        break;
-
-    case 'events':
-        (new EventController())->index();
+        // Добавление мероприятия (только админ)
+        require __DIR__ . '/check_admin.php';
+        require __DIR__ . '/add_item.php';
         break;
 
     case 'edit_event':
-        if (!$user_id || $user_role !== 'admin') {
-            http_response_code(403);
-            echo "Доступ запрещён";
-            exit;
-        }
-        (new EventController())->edit();
+        // Редактирование мероприятия (только админ)
+        require __DIR__ . '/check_admin.php';
+        require __DIR__ . '/edit_item.php';
+        break;
+
+    case 'update_event':
+        // Обновление мероприятия (только админ)
+        require __DIR__ . '/check_admin.php';
+        require __DIR__ . '/update_product.php';
         break;
 
     case 'delete_event':
-        if (!$user_id || $user_role !== 'admin') {
-            http_response_code(403);
-            echo "Доступ запрещён";
-            exit;
-        }
-        (new EventController())->delete();
+        // Удаление мероприятия (только админ)
+        require __DIR__ . '/check_admin.php';
+        require __DIR__ . '/delete_event.php';
         break;
 
-    case 'upload_poster':
-        if (!$user_id || $user_role !== 'admin') {
-            http_response_code(403);
-            echo "Доступ запрещён";
-            exit;
-        }
-        (new EventController())->uploadPoster();
+    case 'event_details':
+        // Детальная страница мероприятия
+        require __DIR__ . '/event_details.php';
         break;
 
-    case 'home':
+    case 'buy_tickets':
+        // Покупка билетов (только авторизованный пользователь)
+        require __DIR__ . '/buy_tickets.php';
+        break;
+
+    case 'profile':
+        // Мои билеты
+        require __DIR__ . '/profile.php';
+        break;
+
+    case 'cancel_ticket':
+        // Отмена билета (пользователь/админ)
+        require __DIR__ . '/cancel_ticket.php';
+        break;
+
+    case 'admin_orders':
+        // Админ-панель заказов (все билеты всех пользователей)
+        require __DIR__ . '/check_admin.php';
+        require __DIR__ . '/admin_orders.php';
+        break;
+
+    case 'login':
+        require __DIR__ . '/login.php';
+        break;
+
+    case 'register':
+        require __DIR__ . '/register.php';
+        break;
+
+    case 'logout':
+        require __DIR__ . '/logout.php';
+        break;
+
     default:
-        require_once __DIR__ . '/templates/home_new.php';
+        http_response_code(404);
+        echo "<h1>404 - Страница не найдена</h1>";
+        echo "<a href='index.php?page=home'>На главную</a>";
         break;
 }

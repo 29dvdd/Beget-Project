@@ -3,10 +3,8 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-require 'db.php';
-
 // 1. Подключаем настройки БД (создан на прошлом занятии 14.01)
-require 'db.php'; 
+require __DIR__ . '/config/db.php'; 
 
 $errorMsg = '';
 $successMsg = '';

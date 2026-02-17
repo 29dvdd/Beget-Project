@@ -1,130 +1,120 @@
 <?php
 session_start();
-require 'db.php';
+require_once __DIR__ . '/config/db.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit;
+  header("Location: index.php?page=login");
+  exit;
 }
 
 $user_id = (int)$_SESSION['user_id'];
+$csrf = $_SESSION['csrf_token'] ?? '';
 
-// Получаем заказы пользователя
 $sql = "
-    SELECT 
-        orders.id as order_id, 
-        orders.created_at, 
-        orders.status, 
-        products.title, 
-        products.price,
-        products.image_url
-    FROM orders 
-    JOIN products ON orders.product_id = products.id 
-    WHERE orders.user_id = ? 
-    ORDER BY orders.created_at DESC
+  SELECT
+    o.id AS order_id,
+    o.created_at,
+    o.status,
+    COALESCE(o.qty, o.quantity) AS qty,
+    e.id AS event_id,
+    e.title,
+    e.event_date,
+    e.venue,
+    e.price,
+    e.poster_url
+  FROM orders o
+  JOIN events e ON e.id = o.event_id
+  WHERE o.user_id = ?
+  ORDER BY o.created_at DESC
 ";
 $stmt = $pdo->prepare($sql);
 $stmt->execute([$user_id]);
-$my_orders = $stmt->fetchAll();
-?>
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Личный кабинет</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
+$orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-    <div class="container">
-        <a class="navbar-brand" href="index.php">Мой Магазин</a>
-        <div class="d-flex">
-            <span class="navbar-text text-white me-3">
-                Вы вошли как: <b><?= htmlspecialchars($_SESSION['email'] ?? 'User') ?></b>
-            </span>
-            <a href="logout.php" class="btn btn-outline-light btn-sm">Выйти</a>
-        </div>
-    </div>
-</nav>
+require __DIR__ . '/templates/header.php';
+?>
 
 <div class="container">
-    <div class="card shadow-sm">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-            <h2 class="mb-0">Мои заказы</h2>
-            <div class="d-flex gap-2">
-                <a class="btn btn-outline-secondary btn-sm" href="change_password.php">Сменить пароль</a>
-                <a class="btn btn-outline-secondary btn-sm" href="index.php">Каталог</a>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0"><i class="bi bi-ticket-perforated"></i> Мои билеты</h3>
+    <a class="btn btn-outline-secondary btn-sm" href="index.php?page=home">На главную</a>
+  </div>
+
+  <?php if (isset($_GET['ok'])): ?>
+    <div class="alert alert-success">Операция выполнена.</div>
+  <?php endif; ?>
+
+  <?php if (!$orders): ?>
+    <div class="alert alert-info">Пока нет покупок.</div>
+  <?php else: ?>
+    <div class="row g-4">
+      <?php foreach ($orders as $o): ?>
+        <?php
+          $qty = (int)($o['qty'] ?? 1);
+          $price = (float)($o['price'] ?? 0);
+          $sum = $qty * $price;
+          $img = $o['poster_url'] ?: 'https://via.placeholder.com/900x450?text=Афиша';
+          $status = $o['status'] ?? 'paid';
+          $isCancelled = ($status === 'cancelled');
+        ?>
+
+        <div class="col-12 col-md-6 col-lg-5">
+          <div class="card shadow-sm h-100">
+            <img src="<?= htmlspecialchars($img) ?>"
+                 class="card-img-top"
+                 style="height:220px;object-fit:cover;"
+                 alt="">
+
+            <div class="card-body">
+              <h5 class="card-title mb-1"><?= htmlspecialchars($o['title']) ?></h5>
+              <div class="text-muted small mb-2">
+                Дата: <?= htmlspecialchars(date('d.m.Y', strtotime($o['event_date']))) ?>
+              </div>
+
+              <div class="d-flex justify-content-between">
+                <div>
+                  <div class="text-muted small">Количество</div>
+                  <div class="fw-semibold"><?= $qty ?></div>
+                </div>
+                <div class="text-end">
+                  <div class="text-muted small">Сумма</div>
+                  <div class="fw-semibold"><?= number_format($sum, 2, '.', ' ') ?> ₽</div>
+                </div>
+              </div>
+
+              <div class="text-muted small mt-2">
+                Куплено: <?= htmlspecialchars(date('d.m.Y H:i', strtotime($o['created_at']))) ?>
+                · Статус: <span class="<?= $isCancelled ? 'text-danger' : 'text-success' ?> fw-semibold">
+                  <?= htmlspecialchars($status) ?>
+                </span>
+              </div>
             </div>
+
+            <div class="card-footer bg-white d-flex gap-2">
+              <a class="btn btn-primary btn-sm"
+                 href="index.php?page=event_details&id=<?= (int)$o['event_id'] ?>">
+                Открыть мероприятие
+              </a>
+
+              <?php if (!$isCancelled): ?>
+                <form method="POST" action="index.php?page=cancel_ticket" class="ms-auto"
+                      onsubmit="return confirm('Отменить билет и вернуть количество?');">
+                  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+                  <input type="hidden" name="order_id" value="<?= (int)$o['order_id'] ?>">
+                  <button class="btn btn-danger btn-sm" type="submit">
+                    <i class="bi bi-x-circle"></i> Отменить
+                  </button>
+                </form>
+              <?php else: ?>
+                <span class="ms-auto badge bg-secondary align-self-center">Отменено</span>
+              <?php endif; ?>
+            </div>
+
+          </div>
         </div>
-        <div class="card-body">
-
-            <?php if ($my_orders): ?>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
-                        <tr>
-                            <th>№</th>
-                            <th>Дата</th>
-                            <th>Мероприятие</th>
-                            <th>Цена</th>
-                            <th>Статус</th>
-                            <th></th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <?php foreach ($my_orders as $order): ?>
-                            <tr>
-                                <td>#<?= (int)$order['order_id'] ?></td>
-                                <td><?= date('d.m.Y H:i', strtotime($order['created_at'])) ?></td>
-                                <td><b><?= htmlspecialchars($order['title']) ?></b></td>
-                                <td><?= number_format((float)$order['price'], 0, '', ' ') ?> ₽</td>
-                                <td>
-                                    <?php
-                                    $status_color = 'secondary';
-                                    if ($order['status'] === 'new') $status_color = 'primary';
-                                    if ($order['status'] === 'processing') $status_color = 'warning';
-                                    if ($order['status'] === 'done') $status_color = 'success';
-                                    ?>
-                                    <span class="badge bg-<?= $status_color ?>">
-                                        <?= htmlspecialchars($order['status']) ?>
-                                    </span>
-                                </td>
-                                <td class="text-end d-flex gap-2 justify-content-end">
-                                    <a class="btn btn-sm btn-outline-primary"
-                                       href="order_details.php?id=<?= (int)$order['order_id'] ?>">
-                                        Подробнее
-                                    </a>
-
-                                    <?php if ($order['status'] === 'new'): ?>
-                                        <form method="POST" action="delete_order.php"
-                                              onsubmit="return confirm('Удалить заказ?');">
-                                            <input type="hidden" name="order_id"
-                                                   value="<?= (int)$order['order_id'] ?>">
-                                            <input type="hidden" name="csrf_token"
-                                                   value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                Удалить
-                                            </button>
-                                        </form>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php else: ?>
-                <div class="text-center py-5">
-                    <h5 class="text-muted">У вас пока нет заказов.</h5>
-                    <a href="index.php" class="btn btn-primary mt-3">Перейти в каталог</a>
-                </div>
-            <?php endif; ?>
-
-        </div>
+      <?php endforeach; ?>
     </div>
+  <?php endif; ?>
 </div>
 
-</body>
-</html>
+<?php require __DIR__ . '/templates/footer.php'; ?>
