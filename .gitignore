@@ -1,0 +1,6 @@
+public_html/config/db.php
+public_html/uploads/
+*.zip
+*.log
+*.error
+*.error.log
